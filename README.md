@@ -1,7 +1,7 @@
-# ezlog
+# EzLogger
 Easy, lightweight, header-only, thread-safe, C++20 file logger.
 
-ezlog is a **header-only**, thread-safe, modern C++20 logger designed to be easy to drop into any project.  
+Ez is a **header-only**, thread-safe, modern C++20 logger designed to be easy to drop into any project.  
 It uses `std::source_location` to automatically capture file, function, and line information without traditional macros.
 
 ## Features
