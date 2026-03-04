@@ -28,26 +28,28 @@
 #include <mutex>
 #include <optional>
 #include <source_location>
+#include <atomic>
 
-enum class LogLevel_;
-class Logger;
+// ── Helper Functions ─────────────────────────────────────────────────────────
+// Extracts the last two path components (e.g., "\folder\file.cpp") for concise log output.
+static std::string extractShortPath(const char* full) {
+    std::string s(full);
+    auto sep1 = s.find_last_of("/\\");
+    if (sep1 == std::string::npos) return s;
+    auto sep2 = s.find_last_of("/\\", sep1 - 1);
+    if (sep2 == std::string::npos) return s.substr(sep1);
+    return s.substr(sep2);
+}
 
- // ── Macro-styled interface ───────────────────────────────────────────────────────────
- // Capture call-site info and forward to the Logger singleton. These are the main functions to use in client code.
-
-inline std::optional<std::string> setLogFile(std::string_view filename) { return Logger::instance().setFile(filename); }
-inline void                       closeLogFile() { Logger::instance().close(); }
-inline void                       setInfoLogLevel() { Logger::instance().setLevel(LogLevel_::INFO_); }
-inline void                       setWarningLogLevel() { Logger::instance().setLevel(LogLevel_::WARNING_); }
-inline void                       setErrorLogLevel() { Logger::instance().setLevel(LogLevel_::ERROR_); }
-inline void                       setDebugLogLevel() { Logger::instance().setLevel(LogLevel_::DEBUG_); }
-inline void                       setTraceLogLevel() { Logger::instance().setLevel(LogLevel_::TRACE_); }
-
-inline void LOG_ERROR(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::ERROR_, msg, loc); }
-inline void LOG_WARN(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::WARNING_, msg, loc); }
-inline void LOG_INFO(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::INFO_, msg, loc); }
-inline void LOG_DEBUG(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::DEBUG_, msg, loc); }
-inline void LOG_TRACE(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::TRACE_, msg, loc); }
+// Extract the function name from a full signature (e.g., "void MyClass::myFunc(int)"), for concise log output.
+static std::string extractFunctionName(const char* full) {
+    std::string s(full);
+    auto paren = s.find('(');
+    if (paren == std::string::npos) return s;
+    auto space = s.rfind(' ', paren); 
+    if (space == std::string::npos) return s.substr(0, paren);
+    return s.substr(space + 1, paren - space - 1);
+}
 
 // ── Log levels ────────────────────────────────────────────────────────────────
 // Numeric values are meaningful: a message is printed only if its level value
@@ -131,8 +133,8 @@ public:
 
         outFile_ << '[' << getCurrentTimestamp() << "]\t["
             << levelStr << "]\t["
-            << loc.function_name() << "]\t("
-            << loc.file_name() << ':' << loc.line() << ")\t"
+            << extractFunctionName(loc.function_name()) << "]\t("
+            << extractShortPath(loc.file_name()) << ':' << loc.line() << ")\t"  // <-- qui
             << message << '\n';
         if (level == LogLevel_::ERROR_) {
             outFile_ << std::flush;
@@ -165,3 +167,21 @@ private:
     std::atomic<LogLevel_> activeLevel_{LogLevel_::INFO_};  // default: DEBUG_ and TRACE_ are silent
     std::mutex    mutex_;
 };
+
+
+// ── Macro-styled interface ───────────────────────────────────────────────────────────
+// Capture call-site info and forward to the Logger singleton. These are the main functions to use in client code.
+
+inline std::optional<std::string> setLogFile(std::string_view filename) { return Logger::instance().setFile(filename); }
+inline void                       closeLogFile() { Logger::instance().close(); }
+inline void                       setInfoLogLevel() { Logger::instance().setLevel(LogLevel_::INFO_); }
+inline void                       setWarningLogLevel() { Logger::instance().setLevel(LogLevel_::WARNING_); }
+inline void                       setErrorLogLevel() { Logger::instance().setLevel(LogLevel_::ERROR_); }
+inline void                       setDebugLogLevel() { Logger::instance().setLevel(LogLevel_::DEBUG_); }
+inline void                       setTraceLogLevel() { Logger::instance().setLevel(LogLevel_::TRACE_); }
+
+inline void LOG_ERROR(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::ERROR_, msg, loc); }
+inline void LOG_WARN(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::WARNING_, msg, loc); }
+inline void LOG_INFO(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::INFO_, msg, loc); }
+inline void LOG_DEBUG(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::DEBUG_, msg, loc); }
+inline void LOG_TRACE(std::string_view msg, const std::source_location& loc = std::source_location::current()) { Logger::instance().log(LogLevel_::TRACE_, msg, loc); }
